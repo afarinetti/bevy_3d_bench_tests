@@ -48,6 +48,30 @@ impl Plugin for MmoMovementPlugin {
         if !app.is_plugin_added::<EnhancedInputPlugin>() {
             app.add_plugins(EnhancedInputPlugin);
         }
-        app.add_input_context::<MmoMovementContext>();
+        app.add_input_context::<MmoMovementContext>()
+            .insert_resource(self.bindings.clone())
+            .register_type::<MmoMovementState>()
+            .register_type::<MmoMovementMask>()
+            .register_type::<MmoMovementParams>();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use bevy::prelude::*;
+
+    #[test]
+    fn plugin_builds_without_panic() {
+        App::new()
+            .add_plugins(MmoMovementPlugin::builder().build());
+    }
+
+    #[test]
+    fn plugin_with_custom_bindings() {
+        let mut custom = MmoBindings::default();
+        custom.mouse_sensitivity = 0.005;
+        App::new()
+            .add_plugins(MmoMovementPlugin::builder().bindings(custom).build());
     }
 }

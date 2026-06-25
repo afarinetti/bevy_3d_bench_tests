@@ -1,3 +1,50 @@
+//! # mmo_input
+//!
+//! WoW-style (keyboard/mouse) and FFXIV-style (gamepad) movement controls for Bevy.
+//!
+//! ## Quick start
+//!
+//! ```rust,no_run
+//! use bevy::prelude::*;
+//! use mmo_input::{MmoMovementPlugin, MmoMovementContext, MmoMovementState,
+//!                  MmoMovementMask, MmoMovementParams};
+//!
+//! fn main() {
+//!     App::new()
+//!         .add_plugins(MmoMovementPlugin::builder().build())
+//!         .add_systems(Startup, spawn_player)
+//!         .run();
+//! }
+//!
+//! fn spawn_player(mut commands: Commands) {
+//!     commands.spawn((
+//!         MmoMovementContext,
+//!         MmoMovementState::default(),
+//!         MmoMovementMask::default(),
+//!         MmoMovementParams::default(),
+//!     ));
+//! }
+//! ```
+//!
+//! ## Tnua integration (feature = "tnua")
+//!
+//! ```ignore
+//! // 1. Add your TnuaScheme (with Basis = TnuaBuiltinWalk) and TnuaController to the player entity.
+//! // 2. Add drive_walk_basis — instantiate with your control scheme type:
+//! app.add_systems(Update, mmo_input::tnua::drive_walk_basis::<MyActions>);
+//!
+//! // 3. Feed jump / dash / other Tnua actions yourself:
+//! fn my_jump_system(
+//!     state: Query<&MmoMovementState>,
+//!     mut controller: Query<&mut TnuaController<MyActions>>,
+//! ) {
+//!     let state = state.single();
+//!     if state.jump {
+//!         controller.single_mut().action(MyActions::Jump(Default::default()));
+//!     }
+//! }
+//! ```
+
 mod actions;
 mod bindings;
 mod params;
@@ -9,6 +56,8 @@ pub mod tnua;
 pub use bindings::{MmoBindings, UserBinding};
 pub use params::MmoMovementParams;
 pub use state::{InputSource, MmoMovementMask, MmoMovementState};
+#[cfg(feature = "tnua")]
+pub use tnua::MmoCameraOrientation;
 
 use bevy::prelude::*;
 use bevy_enhanced_input::prelude::*;

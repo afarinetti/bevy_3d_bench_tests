@@ -63,24 +63,35 @@ pub fn drive_walk_basis<S>(
     S: TnuaScheme<Basis = TnuaBuiltinWalk>,
 {
     for (state, params, mut controller, cam_orientation, transform) in query.iter_mut() {
-        // Determine camera yaw: prefer MmoCameraOrientation, fall back to entity facing.
-        let camera_yaw = cam_orientation.map(|o| o.yaw).unwrap_or_else(|| {
-            // Extract yaw from the entity's current Transform.
-            // EulerRot::YXZ gives (yaw, pitch, roll) in Bevy's right-handed Y-up space.
-            let (yaw, _pitch, _roll) = transform.rotation.to_euler(EulerRot::YXZ);
-            yaw
-        });
-
-        // Rotate camera-relative move_intent (Vec2: x=strafe, y=forward) into world-space Vec3.
-        // camera_yaw = 0 → +Z forward; positive yaw → clockwise when viewed from above.
-        let sin_y = camera_yaw.sin();
-        let cos_y = camera_yaw.cos();
         let local = state.move_intent; // x = strafe right, y = forward
-        let world_dir = Vec3::new(
-            local.x * cos_y + local.y * sin_y, // world X (right)
-            0.0,
-            -local.x * sin_y + local.y * cos_y, // world Z (forward)
-        );
+
+        // Rotate camera-relative move_intent into a world-space horizontal Vec3.
+        let world_dir = match cam_orientation {
+            Some(o) => {
+                // `MmoCameraOrientation.yaw` convention (see the type's docs):
+                // yaw = 0 → +Z forward; positive yaw → clockwise viewed from above.
+                // NOTE: this assumes the `mmo_camera` crate writes `yaw` in that
+                // convention. It is a separate crate and out of scope here.
+                let sin_y = o.yaw.sin();
+                let cos_y = o.yaw.cos();
+                Vec3::new(
+                    local.x * cos_y + local.y * sin_y, // world X (right)
+                    0.0,
+                    -local.x * sin_y + local.y * cos_y, // world Z (forward)
+                )
+            }
+            None => {
+                // No camera orientation: fall back to the entity's own facing.
+                // Use `transform.forward()` / `right()` directly — Bevy's forward
+                // is -Z, so re-deriving a yaw and feeding the "+Z forward" formula
+                // above would flip the sign and drive the character backward.
+                let forward = transform.forward();
+                let right = transform.right();
+                let mut dir = right * local.x + forward * local.y;
+                dir.y = 0.0; // keep the walk basis horizontal
+                dir
+            }
+        };
 
         let effective_speed = params.walk_speed * params.speed_multiplier;
         let desired_motion = world_dir * effective_speed;

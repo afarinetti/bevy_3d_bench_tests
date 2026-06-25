@@ -26,20 +26,30 @@ use crate::{
 pub fn rebuild_bindings(
     mut commands: Commands,
     bindings: Res<MmoBindings>,
-    context_query: Query<Entity, With<MmoMovementContext>>,
+    all_contexts: Query<Entity, With<MmoMovementContext>>,
+    new_contexts: Query<Entity, Added<MmoMovementContext>>,
 ) {
-    if !bindings.is_changed() {
-        return;
-    }
-
-    for ctx_entity in context_query.iter() {
-        // Despawn existing action entities; their Bindings cascade-despawn.
-        commands
-            .entity(ctx_entity)
-            .despawn_related::<Actions<MmoMovementContext>>();
-
-        // Respawn all action entities with their bindings.
-        spawn_actions(&mut commands, ctx_entity, &bindings);
+    if bindings.is_changed() {
+        // Bindings changed (or just inserted): full rebuild across every
+        // context entity. Despawn old action entities (their `Bindings`
+        // cascade-despawn) and respawn from the current `MmoBindings`.
+        //
+        // `all_contexts` already includes any context entity added this frame,
+        // so the `else` branch below is intentionally skipped to avoid spawning
+        // actions twice for a freshly-added context.
+        for ctx_entity in all_contexts.iter() {
+            commands
+                .entity(ctx_entity)
+                .despawn_related::<Actions<MmoMovementContext>>();
+            spawn_actions(&mut commands, ctx_entity, &bindings);
+        }
+    } else {
+        // Bindings unchanged: a context entity spawned in a later frame
+        // (respawn, hot-join, etc.) still needs its actions built. The resource
+        // won't change again, so `Added<MmoMovementContext>` is the only signal.
+        for ctx_entity in new_contexts.iter() {
+            spawn_actions(&mut commands, ctx_entity, &bindings);
+        }
     }
 }
 
@@ -92,8 +102,16 @@ fn spawn_actions(commands: &mut Commands, ctx: Entity, b: &MmoBindings) {
                 ..default()
             });
             gp_move.with_related_entities::<BindingOf>(|bs| {
+                // X axis maps straight onto the Vec2 `.x`.
                 bs.spawn(Binding::GamepadAxis(GamepadAxis::LeftStickX));
-                bs.spawn(Binding::GamepadAxis(GamepadAxis::LeftStickY));
+                // Each `GamepadAxis` is captured as a scalar `Axis1D`, which by
+                // default folds into the action's `.x`. `SwizzleAxis::YXZ` routes
+                // this scalar onto `.y` instead, so forward/back stick movement
+                // actually drives `move_intent.y`.
+                bs.spawn((
+                    Binding::GamepadAxis(GamepadAxis::LeftStickY),
+                    SwizzleAxis::YXZ,
+                ));
             });
 
             // GamepadCamera — right stick X + Y axes (not rebindable).
@@ -103,8 +121,14 @@ fn spawn_actions(commands: &mut Commands, ctx: Entity, b: &MmoBindings) {
                 ..default()
             });
             gp_cam.with_related_entities::<BindingOf>(|bs| {
+                // X axis maps straight onto the Vec2 `.x` (camera yaw).
                 bs.spawn(Binding::GamepadAxis(GamepadAxis::RightStickX));
-                bs.spawn(Binding::GamepadAxis(GamepadAxis::RightStickY));
+                // Route the scalar Y axis onto `.y` (camera pitch) — see the
+                // `SwizzleAxis::YXZ` note on the left stick above.
+                bs.spawn((
+                    Binding::GamepadAxis(GamepadAxis::RightStickY),
+                    SwizzleAxis::YXZ,
+                ));
             });
         });
 }

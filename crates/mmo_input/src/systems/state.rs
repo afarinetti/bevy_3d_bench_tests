@@ -72,6 +72,11 @@ pub fn update_state(
 
     // --- Read all action values; default when action entity absent. ---
     //
+    // NOTE: this system assumes a single `MmoMovementContext` entity (single
+    // local player). `.iter().next()` reads from the first matching action
+    // entity globally, so with N context entities they would all share the same
+    // input. Multi-player split-screen is out of scope for v1 — see design spec.
+    //
     // `.iter().next()` is used rather than `.get_single()` / `.single()` because
     // the single-result API changed name across Bevy versions (0.14–0.19).
     // `.iter().next()` is stable and correctly defaults when no entity exists yet.
@@ -332,6 +337,95 @@ mod tests {
         assert!(
             state.move_intent.y >= 1.0,
             "auto_run must ensure move_intent.y >= 1.0, got {}",
+            state.move_intent.y
+        );
+    }
+
+    // --- Behavioral tests: inject input via `ActionMock` ---------------------
+    //
+    // bevy_enhanced_input evaluates contexts in `PreUpdate` (before our
+    // `update_state` in `Update`). To fake a pressed action without a physical
+    // device we insert an `ActionMock` on the action entity: while enabled it
+    // skips input reading / conditions / modifiers and reports the given
+    // `TriggerState` + value. See `bevy_enhanced_input::action::mock`.
+    //
+    // Flow: spawn the context, `update()` once so `rebuild_bindings` creates the
+    // action entities, mock the desired actions (`MockSpan::Manual` so they
+    // persist), then `update()` again so `update_state` reads the mocked values.
+
+    /// Spawns a player and runs one frame so its action entities exist.
+    fn make_app_with_player() -> (App, Entity) {
+        let mut app = make_app();
+        let player = spawn_player(&mut app);
+        app.update();
+        (app, player)
+    }
+
+    fn mock_pressed<A: bevy_enhanced_input::prelude::InputAction<Output = bool>>(
+        app: &mut App,
+        player: Entity,
+    ) {
+        app.world_mut()
+            .entity_mut(player)
+            .mock::<MmoMovementContext, A>(TriggerState::Fired, true, MockSpan::Manual)
+            .expect("action entity should exist after the first update");
+    }
+
+    /// KB-only (no RMB): TurnLeft turns the character — `yaw_delta` goes
+    /// negative and `move_intent.x` stays 0 (no strafe).
+    #[test]
+    fn kb_only_turn_left_turns_not_strafes() {
+        let (mut app, player) = make_app_with_player();
+        mock_pressed::<TurnLeft>(&mut app, player);
+        // `yaw -= kb_turn_speed * dt`; ensure a nonzero frame delta.
+        std::thread::sleep(std::time::Duration::from_millis(2));
+        app.update();
+        let state = app.world().entity(player).get::<MmoMovementState>().unwrap();
+        assert!(
+            state.yaw_delta < 0.0,
+            "kb-only TurnLeft must turn left (negative yaw), got {}",
+            state.yaw_delta
+        );
+        assert_eq!(
+            state.move_intent.x, 0.0,
+            "kb-only turn must not strafe, got {}",
+            state.move_intent.x
+        );
+    }
+
+    /// RMB + A/D: holding MouseLook switches A/D to strafe — `move_intent.x`
+    /// is -1.0 and `yaw_delta` is 0 (mouse delta is zero, so no yaw).
+    #[test]
+    fn rmb_held_turn_left_strafes_no_yaw() {
+        let (mut app, player) = make_app_with_player();
+        mock_pressed::<MouseLook>(&mut app, player);
+        mock_pressed::<TurnLeft>(&mut app, player);
+        app.update();
+        let state = app.world().entity(player).get::<MmoMovementState>().unwrap();
+        assert_eq!(
+            state.move_intent.x, -1.0,
+            "RMB + TurnLeft must strafe left, got {}",
+            state.move_intent.x
+        );
+        assert_eq!(
+            state.yaw_delta, 0.0,
+            "no mouse delta means no yaw, got {}",
+            state.yaw_delta
+        );
+    }
+
+    /// LMB + RMB both held → WoW auto-walk: forces forward motion,
+    /// `move_intent.y >= 1.0`.
+    #[test]
+    fn lmb_and_rmb_force_forward() {
+        let (mut app, player) = make_app_with_player();
+        mock_pressed::<LeftMouse>(&mut app, player);
+        mock_pressed::<MouseLook>(&mut app, player);
+        app.update();
+        let state = app.world().entity(player).get::<MmoMovementState>().unwrap();
+        assert!(
+            state.move_intent.y >= 1.0,
+            "LMB + RMB must force forward (>= 1.0), got {}",
             state.move_intent.y
         );
     }

@@ -118,6 +118,9 @@ impl Plugin for MmoMovementPlugin {
                 systems::bindings::rebuild_bindings,
                 systems::state::update_state,
             ).chain());
+
+        #[cfg(feature = "tnua")]
+        app.register_type::<tnua::MmoCameraOrientation>();
     }
 }
 

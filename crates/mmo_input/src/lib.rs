@@ -62,13 +62,21 @@ pub use tnua::MmoCameraOrientation;
 use bevy::prelude::*;
 use bevy_enhanced_input::prelude::*;
 
-#[derive(Component)]
+#[derive(Component, Reflect)]
+#[reflect(Component)]
 pub struct MmoMovementContext;
 
 pub struct MmoMovementPlugin {
     bindings: MmoBindings,
 }
 
+/// Builder for [`MmoMovementPlugin`].
+///
+/// # Why there is no `enable_tnua()` method
+///
+/// The tnua feature exposes a generic system `drive_walk_basis<S>` that the game
+/// wires up with its own TnuaController scheme type. A non-generic builder cannot
+/// capture `S`, so tnua integration is not a builder option.
 pub struct MmoMovementPluginBuilder {
     bindings: Option<MmoBindings>,
 }
@@ -99,9 +107,13 @@ impl Plugin for MmoMovementPlugin {
         }
         app.add_input_context::<MmoMovementContext>()
             .insert_resource(self.bindings.clone())
+            .register_type::<MmoMovementContext>()
             .register_type::<MmoMovementState>()
             .register_type::<MmoMovementMask>()
             .register_type::<MmoMovementParams>()
+            .register_type::<MmoBindings>()
+            .register_type::<InputSource>()
+            .register_type::<UserBinding>()
             .add_systems(Update, (
                 systems::bindings::rebuild_bindings,
                 systems::state::update_state,

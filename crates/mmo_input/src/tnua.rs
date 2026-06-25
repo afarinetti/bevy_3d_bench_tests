@@ -1,5 +1,6 @@
 // Compiled only when feature = "tnua"
 use bevy::prelude::*;
+use bevy_tnua::builtins::TnuaBuiltinWalkConfig;
 use bevy_tnua::prelude::*;
 
 use crate::{MmoMovementContext, MmoMovementParams, MmoMovementState};
@@ -92,5 +93,26 @@ pub fn drive_walk_basis<S>(
             desired_motion,
             desired_forward,
         };
+
+        // Propagate MmoMovementParams into the walk config so Tnua uses the
+        // correct float_height, acceleration, and coyote_time.
+        //
+        // `speed` is 1.0 because `desired_motion` already encodes the full
+        // velocity (walk_speed × speed_multiplier × direction); see above.
+        //
+        // NOTE: In bevy-tnua 0.32, `apply_controller_system` overwrites
+        // `basis_config` every physics tick from the `TnuaConfig<S>` asset.
+        // If your setup uses `TnuaConfig<S>`, mirror float_height, acceleration,
+        // air_acceleration, and coyote_time in your `TnuaSchemeConfig` asset as
+        // well. This assignment takes effect in configurations that bypass the
+        // asset system (e.g. headless tests or custom controller pipelines).
+        controller.basis_config = Some(TnuaBuiltinWalkConfig {
+            speed: 1.0,
+            float_height: params.float_height,
+            acceleration: params.acceleration,
+            air_acceleration: params.air_acceleration,
+            coyote_time: params.coyote_time,
+            ..TnuaBuiltinWalkConfig::default()
+        });
     }
 }

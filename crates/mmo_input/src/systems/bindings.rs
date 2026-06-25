@@ -77,12 +77,20 @@ fn spawn_actions(commands: &mut Commands, ctx: Entity, b: &MmoBindings) {
 
             // MouseDelta — always bound to mouse motion (not rebindable).
             let mut mouse_delta = spawner.spawn(Action::<MouseDelta>::new());
+            mouse_delta.insert(ActionSettings {
+                consume_input: false,
+                ..default()
+            });
             mouse_delta.with_related_entities::<BindingOf>(|bs| {
                 bs.spawn(Binding::mouse_motion());
             });
 
             // GamepadMove — left stick X + Y axes (not rebindable).
             let mut gp_move = spawner.spawn(Action::<GamepadMove>::new());
+            gp_move.insert(ActionSettings {
+                consume_input: false,
+                ..default()
+            });
             gp_move.with_related_entities::<BindingOf>(|bs| {
                 bs.spawn(Binding::GamepadAxis(GamepadAxis::LeftStickX));
                 bs.spawn(Binding::GamepadAxis(GamepadAxis::LeftStickY));
@@ -90,6 +98,10 @@ fn spawn_actions(commands: &mut Commands, ctx: Entity, b: &MmoBindings) {
 
             // GamepadCamera — right stick X + Y axes (not rebindable).
             let mut gp_cam = spawner.spawn(Action::<GamepadCamera>::new());
+            gp_cam.insert(ActionSettings {
+                consume_input: false,
+                ..default()
+            });
             gp_cam.with_related_entities::<BindingOf>(|bs| {
                 bs.spawn(Binding::GamepadAxis(GamepadAxis::RightStickX));
                 bs.spawn(Binding::GamepadAxis(GamepadAxis::RightStickY));
@@ -104,6 +116,10 @@ fn spawn_bool_action<A: InputAction<Output = bool> + 'static>(
     user_bindings: &[UserBinding],
 ) {
     let mut action_cmd = spawner.spawn(Action::<A>::new());
+    action_cmd.insert(ActionSettings {
+        consume_input: false,
+        ..default()
+    });
     action_cmd.with_related_entities::<BindingOf>(|bs| {
         for ub in user_bindings {
             bs.spawn(ub.to_bevy_binding());

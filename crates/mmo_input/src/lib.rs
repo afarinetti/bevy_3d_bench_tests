@@ -53,7 +53,10 @@ impl Plugin for MmoMovementPlugin {
             .register_type::<MmoMovementState>()
             .register_type::<MmoMovementMask>()
             .register_type::<MmoMovementParams>()
-            .add_systems(Update, systems::bindings::rebuild_bindings);
+            .add_systems(Update, (
+                systems::bindings::rebuild_bindings,
+                systems::state::update_state,
+            ).chain());
     }
 }
 

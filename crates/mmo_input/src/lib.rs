@@ -52,14 +52,14 @@ impl Plugin for MmoMovementPlugin {
             .insert_resource(self.bindings.clone())
             .register_type::<MmoMovementState>()
             .register_type::<MmoMovementMask>()
-            .register_type::<MmoMovementParams>();
+            .register_type::<MmoMovementParams>()
+            .add_systems(Update, systems::bindings::rebuild_bindings);
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bevy::prelude::*;
 
     #[test]
     fn plugin_builds_without_panic() {

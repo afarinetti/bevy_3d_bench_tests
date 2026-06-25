@@ -11,6 +11,7 @@ pub use params::MmoMovementParams;
 pub use state::{InputSource, MmoMovementMask, MmoMovementState};
 
 use bevy::prelude::*;
+use bevy_enhanced_input::prelude::*;
 
 #[derive(Component)]
 pub struct MmoMovementContext;
@@ -43,7 +44,10 @@ impl MmoMovementPluginBuilder {
 }
 
 impl Plugin for MmoMovementPlugin {
-    fn build(&self, _app: &mut App) {
-        // populated in later tasks
+    fn build(&self, app: &mut App) {
+        if !app.is_plugin_added::<EnhancedInputPlugin>() {
+            app.add_plugins(EnhancedInputPlugin);
+        }
+        app.add_input_context::<MmoMovementContext>();
     }
 }

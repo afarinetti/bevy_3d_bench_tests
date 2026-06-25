@@ -34,3 +34,8 @@ inherits = "release"
 opt-level = "s"
 # Strip all debugging information from the binary to slightly reduce file size.
 strip = "debuginfo"
+
+[workspace]
+members = [
+    "crates/mmo_input",
+]

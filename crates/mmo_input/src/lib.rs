@@ -1,14 +1,49 @@
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
+mod actions;
+mod bindings;
+mod params;
+mod state;
+pub mod systems;
+#[cfg(feature = "tnua")]
+pub mod tnua;
+
+pub use bindings::{MmoBindings, UserBinding};
+pub use params::MmoMovementParams;
+pub use state::{InputSource, MmoMovementMask, MmoMovementState};
+
+use bevy::prelude::*;
+
+#[derive(Component)]
+pub struct MmoMovementContext;
+
+pub struct MmoMovementPlugin {
+    bindings: MmoBindings,
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+pub struct MmoMovementPluginBuilder {
+    bindings: Option<MmoBindings>,
+}
 
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
+impl MmoMovementPlugin {
+    pub fn builder() -> MmoMovementPluginBuilder {
+        MmoMovementPluginBuilder { bindings: None }
+    }
+}
+
+impl MmoMovementPluginBuilder {
+    pub fn bindings(mut self, bindings: MmoBindings) -> Self {
+        self.bindings = Some(bindings);
+        self
+    }
+
+    pub fn build(self) -> MmoMovementPlugin {
+        MmoMovementPlugin {
+            bindings: self.bindings.unwrap_or_default(),
+        }
+    }
+}
+
+impl Plugin for MmoMovementPlugin {
+    fn build(&self, _app: &mut App) {
+        // populated in later tasks
     }
 }

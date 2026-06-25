@@ -1,6 +1,18 @@
 [package]
 name = "mmo_input"
-version = "0.0.0"
+version = "0.1.0"
 edition = "2024"
 
+[features]
+default = []
+tnua = ["dep:bevy-tnua"]
+
 [dependencies]
+bevy = { version = "0.19", default-features = false, features = ["serialize"] }
+bevy_enhanced_input = "0.26"
+bitflags = { version = "2", features = ["serde"] }
+serde = { version = "1", features = ["derive"] }
+
+[dependencies.bevy-tnua]
+version = "0.32"
+optional = true
